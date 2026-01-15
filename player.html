@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>VINYL STATION</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <style type="text/css">
+        @font-face {
+            font-family: 'VT323';
+            font-style: normal;
+            font-weight: 400;
+            src: url('https://fonts.gstatic.com/s/vt323/v17/pxiKyp0ihIEF2isF5Z7udEzt.woff2') format('woff2');
+            
+        }
+    </style>
+
+    <style>
+        /* ============================
+           1. 全局与背景 (复古暗黑风)
+           ============================ */
+        body {
+            margin: 0;
+            height: 100vh;
+            background-color: #111;
+            background-image: url('assets/bbk.jpg');
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            font-family: 'VT323', monospace;
+            color: #eee;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ============================
+           2. 氛围特效 (直接照搬 room.html 的质感)
+           ============================ */
+        /* 噪点层 */
+        .noise-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 999; opacity: 0.08;
+            background: url('data:image/svg+xml;utf8,%3Csvg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg"%3E%3Cfilter id="noiseFilter"%3E%3CfeTurbulence type="fractalNoise" baseFrequency="0.65" numOctaves="3" stitchTiles="stitch"/%3E%3C/filter%3E%3Crect width="100%25" height="100%25" filter="url(%23noiseFilter)" opacity="1"/%3E%3C/svg%3E');
+        }
+        
+        /* 扫描线层 */
+        .scanlines {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.2) 50%, rgba(0,0,0,0.2));
+            background-size: 100% 4px; pointer-events: none; z-index: 998;
+        }
+
+        /* ============================
+           3. 巨型黑胶唱片图片
+           ============================ */
+        .player-container {
+            position: relative;
+            z-index: 10;
+            text-align: center;
+        }
+
+        .vinyl-wrapper {
+            position: relative;
+            width: 650px;  /* 【巨大尺寸】 */
+            height: 650px;
+            margin: 0 auto 30px auto;
+            border-radius: 50%;
+            /* 给图片加一个稍微的阴影，增加立体感 */
+            box-shadow: 0 10px 30px rgba(0,0,0,0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* 黑胶图片本身 */
+        #vinyl-img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain; /* 保持图片比例 */
+            border-radius: 50%;
+            image-rendering: pixelated; /* 像素化渲染 */
+            cursor: pointer;
+            transition: transform 0.2s ease-out; /* 停止旋转时的平滑过渡 */
+        }
+
+        /* 旋转动画定义 */
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        /* 激活旋转的类 */
+        .spinning {
+            animation: spin 3s linear infinite; /* 3秒转一圈，线性匀速 */
+        }
+
+        /* ============================
+           4. 像素风 UI 元素
+           ============================ */
+        h1 {
+            font-size: 42px;
+            letter-spacing: 4px;
+            margin: 0 0 10px 0;
+            text-shadow: 4px 4px 0px #000;
+            color: #dcdcdc;
+        }
+
+        .status-text {
+            font-size: 24px;
+            color: #888;
+            margin-bottom: 20px;
+            letter-spacing: 2px;
+        }
+
+        /* 按钮样式 - 复古像素风 */
+        .btn-retro {
+            font-family: 'VT323', monospace;
+            font-size: 28px;
+            background-color: #c0c0c0; /* 经典的 Windows 95 灰 */
+            color: #000;
+            border: 4px solid #fff; /* 模拟凸起效果的高光 */
+            border-right-color: #444; /* 模拟阴影 */
+            border-bottom-color: #444;
+            padding: 5px 30px;
+            cursor: pointer;
+            text-transform: uppercase;
+            box-shadow: 4px 4px 0px #000;
+            transition: transform 0.1s;
+        }
+
+        .btn-retro:active {
+            border: 4px solid #444;
+            border-right-color: #fff;
+            border-bottom-color: #fff;
+            transform: translate(2px, 2px); /* 点击下压效果 */
+            box-shadow: 2px 2px 0px #000;
+        }
+
+        .btn-retro:hover {
+            background-color: #fff;
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="scanlines"></div>
+    <div class="noise-overlay"></div>
+
+    <div class="player-container">
+        <h1>NOW PLAYING</h1>
+        
+        <div class="vinyl-wrapper">
+            <img id="vinyl-img" src="assets/bbc.jpg" alt="Vinyl Record">
+        </div>
+
+        <div class="status-text">> HOVER TO SPIN <</div>
+
+        <button class="btn-retro" id="btn-back">
+            < BACK TO ROOM
+        </button>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            const vinyl = $('#vinyl-img');
+            const status = $('.status-text');
+
+            // 鼠标悬停事件：添加 spinning 类
+            vinyl.hover(
+                function() { // Mouse enter
+                    $(this).css('animation-play-state', 'running');
+                    if (!$(this).hasClass('spinning')) {
+                        $(this).addClass('spinning');
+                    }
+                    status.text("> PLAYING... <").css('color', '#5f5');
+                }, 
+                function() { // Mouse leave
+                    // 也可以选择让它暂停而不是重置
+                    $(this).css('animation-play-state', 'paused');
+                    status.text("> PAUSED <").css('color', '#888');
+                }
+            );
+
+            // 点击返回房间
+            $('#btn-back').click(function() {
+                // 播放一个点击音效感觉会更好（可选）
+                window.location.href = 'room.html';
+            });
+
+            // 初始化状态：先加上类但暂停，这样 hover 时直接运行
+            vinyl.addClass('spinning').css('animation-play-state', 'paused');
+        });
+    </script>
+</body>
+</html>

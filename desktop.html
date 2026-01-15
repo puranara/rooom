@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>桌面中转页</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Tahoma', 'Microsoft Sans Serif', Arial, sans-serif;
+            background: linear-gradient(to bottom right, #3a6ea5, #004e98);
+            height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        
+        /* 桌面背景 */
+        .desktop-bg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1200&q=80');
+            background-size: cover;
+            background-position: center;
+            opacity: 0.8;
+            z-index: 0;
+        }
+        
+        /* 桌面图标区域 */
+        .desktop-icons {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            z-index: 1;
+        }
+        
+        .desktop-icon {
+            width: 70px;
+            text-align: center;
+            cursor: pointer;
+            padding: 8px 5px;
+            border-radius: 5px;
+            transition: all 0.2s;
+            user-select: none;
+        }
+        
+        .desktop-icon:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .desktop-icon:active {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        
+        .icon-img {
+            width: 48px;
+            height: 48px;
+            margin: 0 auto 5px;
+            background-color: white;
+            border-radius: 5px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            color: #3a6ea5;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+        
+        .icon-text {
+            color: white;
+            font-size: 12px;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.7);
+            word-break: break-word;
+        }
+        
+        /* 任务栏 */
+        .taskbar {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            background: linear-gradient(to bottom, #245edc, #0a246a);
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            z-index: 10;
+            border-top: 2px solid #a6caf0;
+        }
+        
+        .start-btn {
+            background: linear-gradient(to bottom, #5cb3ff, #0a246a);
+            color: white;
+            border: none;
+            padding: 5px 15px;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            height: 30px;
+            border-radius: 3px;
+            box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.4);
+        }
+        
+        .start-btn:hover {
+            background: linear-gradient(to bottom, #7cc3ff, #1a348a);
+        }
+        
+        .start-btn:active {
+            box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        
+        /* 关机按钮 */
+        .shutdown-btn {
+            background: linear-gradient(to bottom, #ff5555, #990000);
+            color: white;
+            border: none;
+            padding: 5px 12px;
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            cursor: pointer;
+            height: 30px;
+            border-radius: 3px;
+            margin-left: 10px;
+            box-shadow: inset 1px 1px 0px rgba(255, 255, 255, 0.4);
+        }
+        
+        .shutdown-btn:hover {
+            background: linear-gradient(to bottom, #ff7777, #bb0000);
+        }
+        
+        .shutdown-btn:active {
+            box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.5);
+        }
+        
+        .system-tray {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: white;
+            font-size: 12px;
+            padding-right: 10px;
+            margin-left: auto;
+        }
+        
+        .time {
+            background-color: rgba(0, 0, 0, 0.3);
+            padding: 3px 8px;
+            border-radius: 3px;
+        }
+        
+        /* 关机动画遮罩 */
+        .shutdown-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.8s ease-in-out;
+        }
+        
+        .shutdown-message {
+            color: white;
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.8s ease-in-out;
+        }
+        
+        /* 图片查看窗口 */
+        .image-viewer {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 80%;
+            height: 80%;
+            background-color: #ece9d8;
+            border: 2px solid #0a246a;
+            box-shadow: 3px 3px 20px rgba(0, 0, 0, 0.7);
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .viewer-header {
+            background: linear-gradient(to right, #0a246a, #a6caf0);
+            color: white;
+            padding: 10px;
+            font-weight: bold;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .viewer-content {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #000;
+            overflow: auto;
+            padding: 20px;
+        }
+        
+        .viewer-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        }
+        
+        .viewer-caption {
+            background-color: #d4d0c8;
+            padding: 10px;
+            text-align: center;
+            font-style: italic;
+            border-top: 1px solid #808080;
+        }
+        
+        .close-btn {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .close-btn:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+            border-radius: 3px;
+        }
+        
+        /* 响应式调整 */
+        @media (max-width: 768px) {
+            .desktop-icons {
+                gap: 20px;
+            }
+            
+            .desktop-icon {
+                width: 60px;
+            }
+            
+            .icon-img {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            
+            .image-viewer {
+                width: 95%;
+                height: 85%;
+            }
+            
+            .shutdown-btn span {
+                display: none;
+            }
+            
+            .shutdown-btn {
+                padding: 5px 8px;
+            }
+        }
+    </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="desktop-bg"></div>
+    
+    <!-- 桌面图标 -->
+    <div class="desktop-icons">
+        <!-- 开发日志图标 - 跳转到computer.html -->
+        <a href="computer.html" class="desktop-icon" style="text-decoration: none;">
+            <div class="icon-img">
+                <i class="fas fa-code"></i>
+            </div>
+            <div class="icon-text">开发日志</div>
+        </a>
+        
+        <!-- 我的电脑图标 - 跳转到computer.html -->
+        <a href="computer.html" class="desktop-icon" style="text-decoration: none;">
+            <div class="icon-img">
+                <i class="fas fa-desktop"></i>
+            </div>
+            <div class="icon-text">我的电脑</div>
+        </a>
+        
+        <!-- 图片查看器图标 - 打开本地图片查看器 -->
+        <div class="desktop-icon" id="image-viewer-btn">
+            <div class="icon-img">
+                <i class="fas fa-image"></i>
+            </div>
+            <div class="icon-text">图片查看器</div>
+        </div>
+        
+        <!-- 视频文件图标 - 跳转到computer.html -->
+        <a href="computer.html" class="desktop-icon" style="text-decoration: none;">
+            <div class="icon-img">
+                <i class="fas fa-film"></i>
+            </div>
+            <div class="icon-text">视频文件</div>
+        </a>
+        
+        <!-- 打开文件夹图标 - 模拟打开assets文件夹 -->
+        <div class="desktop-icon" id="open-folder-btn">
+            <div class="icon-img">
+                <i class="fas fa-folder-open"></i>
+            </div>
+            <div class="icon-text">打开文件夹</div>
+        </div>
+    </div>
+    
+    <!-- 图片查看窗口 -->
+    <div class="image-viewer" id="image-viewer">
+        <div class="viewer-header">
+            <span>图片查看器</span>
+            <button class="close-btn" id="close-viewer">×</button>
+        </div>
+        <div class="viewer-content">
+            <img id="viewer-image" class="viewer-img" src="" alt="图片">
+        </div>
+        <div class="viewer-caption" id="image-caption">图片说明</div>
+    </div>
+    
+    <!-- 关机动画遮罩 -->
+    <div class="shutdown-overlay" id="shutdown-overlay">
+        <div class="shutdown-message" id="shutdown-message">
+            <div>正在关机...</div>
+            <div style="font-size: 16px; margin-top: 10px;">稍后将返回房间</div>
+        </div>
+    </div>
+    
+    <!-- 任务栏 -->
+    <div class="taskbar">
+        <button class="start-btn" id="start-btn">
+            <i class="fab fa-windows"></i>
+            <span>开始</span>
+        </button>
+        
+        <!-- 关机按钮 -->
+        <button class="shutdown-btn" id="shutdown-btn">
+            <i class="fas fa-power-off"></i>
+            <span>关机</span>
+        </button>
+        
+        <div class="system-tray">
+            <!-- 系统托盘图标 -->
+            <i class="fas fa-volume-up" style="cursor: pointer;" title="音量"></i>
+            <i class="fas fa-wifi" style="cursor: pointer;" title="网络"></i>
+            
+            <div class="time" id="system-time">00:00</div>
+        </div>
+    </div>
+    
+    <!-- 图片文件夹内容提示 -->
+    <div id="folder-content" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: #ece9d8; border: 2px solid #0a246a; box-shadow: 3px 3px 20px rgba(0,0,0,0.7); z-index: 100; width: 500px; max-width: 90%;">
+        <div style="background: linear-gradient(to right, #0a246a, #a6caf0); color: white; padding: 10px; font-weight: bold; display: flex; justify-content: space-between; align-items: center;">
+            <span>assets文件夹内容</span>
+            <button onclick="document.getElementById('folder-content').style.display='none'" style="background: none; border: none; color: white; font-size: 20px; cursor: pointer;">×</button>
+        </div>
+        <div style="padding: 20px; max-height: 400px; overflow-y: auto;">
+            <p>assets文件夹中的文件：</p>
+            <ul style="margin: 15px 0; padding-left: 20px;">
+                <li>computer_sketch.jpg - 嘟嘟的图片</li>
+                <li>apple.jpg - 狮子苹果的图片</li>
+                <li>sanji.mp4 - 三鸡的视频</li>
+            </ul>
+            <p style="margin-top: 20px;">点击下方按钮查看图片：</p>
+            <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap;">
+                <button onclick="viewImage('嘟嘟的草图', 'assets/computer_sketch.jpg')" style="padding: 8px 15px; background: #5cb3ff; color: white; border: none; border-radius: 3px; cursor: pointer;">查看嘟嘟草图</button>
+                <button onclick="viewImage('狮子苹果', 'assets/apple.jpg')" style="padding: 8px 15px; background: #5cb3ff; color: white; border: none; border-radius: 3px; cursor: pointer;">查看狮子苹果</button>
+                <button onclick="window.location.href='computer.html'" style="padding: 8px 15px; background: #ff5555; color: white; border: none; border-radius: 3px; cursor: pointer;">查看完整项目</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取元素
+            const startBtn = document.getElementById('start-btn');
+            const shutdownBtn = document.getElementById('shutdown-btn');
+            const systemTime = document.getElementById('system-time');
+            const imageViewerBtn = document.getElementById('image-viewer-btn');
+            const openFolderBtn = document.getElementById('open-folder-btn');
+            const imageViewer = document.getElementById('image-viewer');
+            const closeViewer = document.getElementById('close-viewer');
+            const viewerImage = document.getElementById('viewer-image');
+            const imageCaption = document.getElementById('image-caption');
+            const folderContent = document.getElementById('folder-content');
+            const shutdownOverlay = document.getElementById('shutdown-overlay');
+            const shutdownMessage = document.getElementById('shutdown-message');
+            
+            // 示例图片数据 - 这里可以替换为实际的图片路径
+            const sampleImages = [
+                { name: '示例图片1', url: 'https://images.unsplash.com/photo-1579546929662-711aa81148cf?w=400&h=300&fit=crop' },
+                { name: '示例图片2', url: 'https://images.unsplash.com/photo-1557683316-973673baf926?w-400&h=300&fit=crop' },
+                { name: '示例图片3', url: 'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=400&h=300&fit=crop' }
+            ];
+            
+            // 更新时间
+            function updateTime() {
+                const now = new Date();
+                const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false, hour: '2-digit', minute: '2-digit' });
+                systemTime.textContent = timeStr;
+            }
+            
+            // 初始更新时间
+            updateTime();
+            setInterval(updateTime, 1000);
+            
+            // 关机功能
+            shutdownBtn.addEventListener('click', function() {
+                // 显示关机动画
+                shutdownOverlay.style.display = 'flex';
+                
+                // 触发重绘
+                setTimeout(() => {
+                    shutdownOverlay.style.opacity = '1';
+                    shutdownMessage.style.opacity = '1';
+                    shutdownMessage.style.transform = 'translateY(0)';
+                }, 10);
+                
+                // 延迟3秒后跳转回room.html
+                setTimeout(() => {
+                    window.location.href = 'room.html';
+                }, 3000);
+            });
+            
+            // 打开图片查看器
+            imageViewerBtn.addEventListener('click', function() {
+                // 显示第一张示例图片
+                viewImage(sampleImages[0].name, sampleImages[0].url);
+            });
+            
+            // 打开文件夹
+            openFolderBtn.addEventListener('click', function() {
+                folderContent.style.display = 'block';
+            });
+            
+            // 关闭图片查看器
+            closeViewer.addEventListener('click', function() {
+                imageViewer.style.display = 'none';
+            });
+            
+            // 点击查看器外部关闭
+            imageViewer.addEventListener('click', function(e) {
+                if (e.target === imageViewer) {
+                    imageViewer.style.display = 'none';
+                }
+            });
+            
+            // 查看图片函数
+            function viewImage(caption, imageUrl) {
+                viewerImage.src = imageUrl;
+                imageCaption.textContent = caption;
+                imageViewer.style.display = 'flex';
+                
+                // 图片加载失败时显示占位符
+                viewerImage.onerror = function() {
+                    this.src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="400" height="300" viewBox="0 0 400 300"><rect width="400" height="300" fill="%23000"/><text x="200" y="150" text-anchor="middle" fill="%23fff" font-family="Arial" font-size="16">图片加载失败</text><text x="200" y="180" text-anchor="middle" fill="%23aaa" font-family="Arial" font-size="12">请检查图片路径: ' + imageUrl + '</text></svg>';
+                    imageCaption.textContent = caption + ' (图片加载失败)';
+                };
+            }
+            
+            // 初始化显示一张示例图片
+            setTimeout(() => {
+                // 预加载一张示例图片
+                const img = new Image();
+                img.src = sampleImages[0].url;
+            }, 1000);
+            
+            // 添加键盘快捷键
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    imageViewer.style.display = 'none';
+                    folderContent.style.display = 'none';
+                }
+                
+                // Alt+F4 快捷键关机
+                if (e.key === 'F4' && e.altKey) {
+                    e.preventDefault();
+                    shutdownBtn.click();
+                }
+            });
+            
+            // 给开始按钮添加简单功能
+            startBtn.addEventListener('click', function() {
+                const startMenu = document.createElement('div');
+                startMenu.innerHTML = `
+                    <div style="position: fixed; bottom: 40px; left: 10px; background: linear-gradient(to bottom, #f0f0f0, #c0c0c0); border: 2px solid #0a246a; box-shadow: 3px 3px 10px rgba(0,0,0,0.5); z-index: 999; width: 200px;">
+                        <div style="background: linear-gradient(to right, #0a246a, #a6caf0); color: white; padding: 10px; font-weight: bold;">开始菜单</div>
+                        <div style="padding: 10px;">
+                            <div style="padding: 8px; cursor: pointer; border-bottom: 1px solid #ccc;" onclick="window.location.href='computer.html'">我的电脑</div>
+                            <div style="padding: 8px; cursor: pointer; border-bottom: 1px solid #ccc;" onclick="document.getElementById('image-viewer-btn').click()">图片查看器</div>
+                            <div style="padding: 8px; cursor: pointer; border-bottom: 1px solid #ccc;" onclick="document.getElementById('open-folder-btn').click()">打开文件夹</div>
+                            <div style="padding: 8px; cursor: pointer; color: #ff5555; font-weight: bold;" onclick="document.getElementById('shutdown-btn').click()">关机</div>
+                        </div>
+                    </div>
+                `;
+                startMenu.id = 'start-menu';
+                
+                // 如果已经存在开始菜单，则移除它
+                const existingMenu = document.getElementById('start-menu');
+                if (existingMenu) {
+                    existingMenu.remove();
+                } else {
+                    document.body.appendChild(startMenu);
+                    
+                    // 点击其他地方关闭开始菜单
+                    setTimeout(() => {
+                        document.addEventListener('click', function closeMenu(e) {
+                            if (!startMenu.contains(e.target) && e.target !== startBtn) {
+                                startMenu.remove();
+                                document.removeEventListener('click', closeMenu);
+                            }
+                        });
+                    }, 10);
+                }
+            });
+        });
+    </script>
+</body>
+</html>

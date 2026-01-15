@@ -1,0 +1,262 @@
+<!DOCTYPE html> 
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>AQUARIUM MODE - FIXED</title>
+    <style>
+        body {
+            margin: 0;
+            height: 100vh;
+            overflow: hidden;
+            background-color: #000510; 
+            background-image: radial-gradient(circle at 50% 10%, #002b55 0%, #000510 100%);
+            font-family: 'Courier New', monospace;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            user-select: none;
+        }
+
+        /* 环境气泡 */
+        .bubble {
+            position: absolute;
+            bottom: -20px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 50%;
+            animation: rise infinite linear;
+            pointer-events: none;
+            z-index: 5;
+        }
+        @keyframes rise {
+            0% { transform: translateY(0); opacity: 0; }
+            50% { opacity: 1; }
+            100% { transform: translateY(-110vh); opacity: 0; }
+        }
+
+        /* 点击产生的气泡 */
+        .burst-bubble {
+            position: absolute;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            pointer-events: none;
+            z-index: 1000;
+            animation: burst-anim 1s ease-out forwards;
+        }
+        @keyframes burst-anim {
+            0% { transform: translate(0, 0) scale(0.5); opacity: 1; }
+            100% { transform: translate(var(--drift-x), -60px) scale(1.2); opacity: 0; }
+        }
+
+        .tank-container {
+            width: 100%; height: 100%; position: relative;
+            box-shadow: inset 0 0 100px rgba(0,0,0,0.8);
+            z-index: 10;
+        }
+
+        .fish {
+            position: absolute;
+            height: auto;
+            filter: drop-shadow(0 5px 5px rgba(0,0,0,0.5));
+            cursor: pointer;
+            transition: transform 0.1s; 
+            will-change: transform, left; 
+            
+            /* 【核心修改】默认朝向变量，JS会动态修改这个值 */
+            --s: 1; 
+        }
+
+        .fish:active { transform: scale(0.95); }
+
+        /* =========================================
+           游动动画 - 使用 var(--s) 动态控制方向
+           JS 会计算好 --s 是 1 还是 -1
+        ========================================= */
+
+        /* --- 向右游的轨迹 (Left: -25% -> 125%) --- */
+        @keyframes swim-right-level {
+            0%   { left: -25%; transform: scaleX(var(--s)) translateY(0); }
+            50%  { transform: scaleX(var(--s)) translateY(-20px); }
+            100% { left: 125%; transform: scaleX(var(--s)) translateY(0); }
+        }
+        @keyframes swim-right-wave {
+            0%   { left: -25%; transform: scaleX(var(--s)) translateY(0); }
+            25%  { transform: scaleX(var(--s)) translateY(-150px); }
+            50%  { transform: scaleX(var(--s)) translateY(50px); }
+            75%  { transform: scaleX(var(--s)) translateY(-80px); }
+            100% { left: 125%; transform: scaleX(var(--s)) translateY(0); }
+        }
+        @keyframes swim-right-dive {
+            0%   { left: -25%; transform: scaleX(var(--s)) translateY(-15vh); }
+            100% { left: 125%; transform: scaleX(var(--s)) translateY(15vh); }
+        }
+        @keyframes swim-right-rise {
+            0%   { left: -25%; transform: scaleX(var(--s)) translateY(15vh); }
+            100% { left: 125%; transform: scaleX(var(--s)) translateY(-15vh); }
+        }
+
+        /* --- 向左游的轨迹 (Left: 125% -> -25%) --- */
+        @keyframes swim-left-level {
+            0%   { left: 125%; transform: scaleX(var(--s)) translateY(0); }
+            50%  { transform: scaleX(var(--s)) translateY(20px); }
+            100% { left: -25%; transform: scaleX(var(--s)) translateY(0); }
+        }
+        @keyframes swim-left-wave {
+            0%   { left: 125%; transform: scaleX(var(--s)) translateY(0); }
+            25%  { transform: scaleX(var(--s)) translateY(120px); }
+            50%  { transform: scaleX(var(--s)) translateY(-100px); }
+            75%  { transform: scaleX(var(--s)) translateY(60px); }
+            100% { left: -25%; transform: scaleX(var(--s)) translateY(0); }
+        }
+        @keyframes swim-left-dive {
+            0%   { left: 125%; transform: scaleX(var(--s)) translateY(-15vh); }
+            100% { left: -25%; transform: scaleX(var(--s)) translateY(15vh); }
+        }
+        @keyframes swim-left-rise {
+            0%   { left: 125%; transform: scaleX(var(--s)) translateY(15vh); }
+            100% { left: -25%; transform: scaleX(var(--s)) translateY(-15vh); }
+        }
+
+        .ui-layer {
+            position: absolute; top: 40px; left: 40px;
+            color: #4da6ff; text-shadow: 0 0 5px #4da6ff;
+            z-index: 900; pointer-events: none;
+        }
+        
+        .back-btn {
+            position: absolute; bottom: 40px; right: 40px;
+            color: #4da6ff; border: 1px solid #4da6ff;
+            padding: 10px 20px; cursor: pointer;
+            background: rgba(0,0,0,0.3); text-decoration: none;
+            transition: 0.3s; z-index: 900; font-size: 14px; text-transform: uppercase;
+        }
+        .back-btn:hover { background: #4da6ff; color: #000; }
+    </style>
+</head>
+<body>
+
+    <div id="bubble-layer"></div>
+    <div class="tank-container" id="tank"></div>
+
+    <div class="ui-layer">
+        <h2>TANK_STATUS: STABILIZED</h2>
+        <p>System: Direction correction applied.</p>
+    </div>
+
+    <a href="room.html" class="back-btn">EXIT AQUARIUM</a>
+
+    <script>
+        // ====================================================
+        // 反向鱼名单
+        // 如果发现鱼(比如fish5.png)是倒着游的
+        // 把数字 5 加到下面的数组里，例如: [5, 12, 19]
+        // ====================================================
+        const fixList = []; // <--- 在这里填入倒着游的鱼的编号
+
+        function spawnFish() {
+            const tank = document.getElementById('tank');
+            const totalFish = 19; 
+
+            for (let i = 1; i <= totalFish; i++) {
+                const fish = document.createElement('img');
+                fish.src = `assets/fish${i}.png`; 
+                fish.className = 'fish';
+                
+                // --- 随机属性 ---
+                const size = Math.floor(Math.random() * 120) + 50; 
+                fish.style.width = size + 'px';
+                const topPos = Math.floor(Math.random() * 80) + 10;
+                fish.style.top = topPos + '%';
+
+                // --- 确定游动方向 ---
+                const isSwimmingRight = Math.random() > 0.5;
+                const directionStr = isSwimmingRight ? 'right' : 'left';
+
+                // --- 【核心修复逻辑】计算正确的 scale ---
+                // 1. 基础逻辑：往右游 scale=1，往左游 scale=-1
+                let finalScale = isSwimmingRight ? 1 : -1;
+                
+                // 2. 修正逻辑：如果这条鱼在“反向名单”里，则把 scale 再次翻转
+                if (fixList.includes(i)) {
+                    finalScale = finalScale * -1;
+                }
+
+                // 3. 将计算好的值赋给 CSS 变量 --s
+                fish.style.setProperty('--s', finalScale);
+
+
+                // --- 确定动画轨迹 ---
+                const moveTypeRand = Math.random();
+                let moveType = 'level'; 
+                if (moveTypeRand > 0.4 && moveTypeRand <= 0.7) moveType = 'wave';
+                else if (moveTypeRand > 0.7 && moveTypeRand <= 0.85) moveType = 'rise';
+                else if (moveTypeRand > 0.85) moveType = 'dive';
+
+                const animName = `swim-${directionStr}-${moveType}`;
+                const duration = (Math.floor(Math.random() * 10) + 15) + (size / 10);
+                const delay = Math.floor(Math.random() * 60) * -1;
+
+                fish.style.animation = `${animName} ${duration}s linear infinite`;
+                fish.style.animationDelay = `${delay}s`;
+
+                // --- 景深 ---
+                fish.style.zIndex = Math.floor(size); 
+                if (size < 70) {
+                    fish.style.opacity = 0.6;
+                    fish.style.filter = 'blur(1.5px)';
+                } else if (size < 100) {
+                    fish.style.opacity = 0.8;
+                    fish.style.filter = 'blur(0.5px)';
+                } else {
+                    fish.style.opacity = 1.0;
+                }
+
+                // --- 点击冒泡 ---
+                fish.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    spawnClickBubbles(e.clientX, e.clientY);
+                });
+
+                tank.appendChild(fish);
+            }
+        }
+        
+        spawnFish();
+
+        // 点击产生的气泡
+        function spawnClickBubbles(x, y) {
+            const count = 5 + Math.random() * 5; 
+            for (let i = 0; i < count; i++) {
+                const b = document.createElement('div');
+                b.className = 'burst-bubble';
+                b.style.left = x + 'px';
+                b.style.top = y + 'px';
+                const size = Math.random() * 8 + 3; 
+                b.style.width = size + 'px';
+                b.style.height = size + 'px';
+                const drift = (Math.random() - 0.5) * 50 + 'px';
+                b.style.setProperty('--drift-x', drift);
+                document.body.appendChild(b);
+                setTimeout(() => b.remove(), 1000); 
+            }
+        }
+
+        // 环境气泡
+        function createAmbientBubbles() {
+            const layer = document.getElementById('bubble-layer');
+            const bubbleCount = 40;
+            for (let i = 0; i < bubbleCount; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                const size = Math.random() * 5 + 2;
+                bubble.style.width = size + 'px';
+                bubble.style.height = size + 'px';
+                bubble.style.left = Math.random() * 100 + 'vw';
+                bubble.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                bubble.style.animationDelay = Math.random() * 10 + 's';
+                layer.appendChild(bubble);
+            }
+        }
+        createAmbientBubbles();
+    </script>
+</body>
+</html>

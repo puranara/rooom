@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>The Diary</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            background-color: #050505;
+            margin: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            perspective: 1000px;
+            overflow: hidden;
+            /* 核心修改：使用像素字体栈 */
+            font-family: 'VT323', 'SimSun', 'Courier New', monospace;
+        }
+
+        .scene {
+            width: 420px;
+            height: 580px;
+            position: relative;
+            transform-style: preserve-3d;
+        }
+
+        .paper {
+            width: 100%;
+            height: 100%;
+            position: absolute;
+            
+            /* 背景图：如果有 paper.png 会覆盖颜色 */
+            background-image: url('assets/paper.png');
+            background-size: cover;
+            
+            /* 备用背景：米色像素噪点质感 */
+            background-color: #e6dac3;
+            /* 生成一点噪点纹理，更有复古感 */
+            background-image: 
+                url('assets/paper.png'), 
+                radial-gradient(#d4c5a9 15%, transparent 16%),
+                radial-gradient(#d4c5a9 15%, transparent 16%);
+            background-size: cover, 4px 4px, 4px 4px;
+            background-position: 0 0, 0 0, 2px 2px;
+            
+            /* 像素风通常不需要圆角，或者用很小的锯齿 */
+            border: 4px solid #2c2c2c; /* 加个黑框更像游戏界面 */
+            box-shadow: 
+                15px 15px 0px rgba(0,0,0,0.5), /* 像素风阴影通常是实边的，不模糊 */
+                inset 0 0 0 2px #fff; /* 内描边 */
+            
+            padding: 40px;
+            box-sizing: border-box;
+            color: #2c2c2c;
+            
+            transform: rotateX(0deg) rotateY(0deg);
+            transition: transform 0.1s ease-out;
+            user-select: none;
+            
+            /* 关键：让图片和文字渲染更锐利 */
+            image-rendering: pixelated; 
+            -webkit-font-smoothing: none; 
+        }
+
+        /* 像素横线 */
+        .lines {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            /* 虚线效果 */
+            background: linear-gradient(transparent 96%, rgba(85, 68, 68, 0.2) 96%);
+            background-size: 100% 36px; /* 行高调整 */
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        .content {
+            position: relative;
+            z-index: 1;
+        }
+
+        h2 {
+            margin-top: 0;
+            border-bottom: 4px dashed #2c2c2c; /* 虚线分割 */
+            padding-bottom: 10px;
+            font-size: 42px; /* 像素字体通常要大一点才好看 */
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        p {
+            font-size: 24px; /* 调大字号，模拟低分辨率屏幕 */
+            line-height: 36px; /* 对齐横线 */
+            margin-bottom: 20px;
+        }
+
+        /* 红字高亮 */
+        .highlight {
+            color: #b91d1d; 
+            text-shadow: 2px 2px 0px rgba(200, 100, 100, 0.3);
+        }
+
+        /* 按钮改造成像素块风格 */
+        .back-btn {
+            position: absolute;
+            bottom: 30px;
+            right: 40px;
+            text-decoration: none;
+            color: #000;
+            background: #fff;
+            border: 4px solid #000;
+            padding: 10px 20px;
+            font-size: 24px;
+            text-transform: uppercase;
+            box-shadow: 6px 6px 0px #000; /* 像素立体感 */
+            transition: 0.1s;
+            cursor: pointer;
+            z-index: 2;
+        }
+        
+        .back-btn:active {
+            transform: translate(4px, 4px); /* 按下去的效果 */
+            box-shadow: 2px 2px 0px #000;
+        }
+        
+        .back-btn:hover {
+            background: #ffff00; /* 悬停变黄 */
+        }
+
+        /* 胶带改成像素块 */
+        .tape {
+            position: absolute;
+            top: -20px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 140px;
+            height: 40px;
+            background-color: rgba(255, 255, 255, 0.8);
+            border: 2px solid #ccc;
+            /* 纯css画两个钉子 */
+            box-shadow: 
+                inset 10px 0 0 rgba(0,0,0,0.1), 
+                inset -10px 0 0 rgba(0,0,0,0.1);
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="scene">
+        <div class="paper" id="paper">
+            <div class="tape"></div>
+            <div class="lines"></div>
+            
+            <div class="content">
+                <h2>Dec 25th</h2>
+                
+                <p>雨好像永远都不会停。</p>
+                
+                <p>今天把吉他的三弦换了，音色听起来亮了一点。在这间屋子里待久了，时间的概念变模糊了。</p>
+                
+                <p>那棵树长得很快，<span class="highlight">它在听我弹琴。</span></p>
+                
+                <p>写完这段旋律就睡吧...</p>
+
+                <a href="room.html" class="back-btn">Close</a>
+            </div>
+        </div>
+    </div>
+
+        <script>
+            const paper = document.getElementById('paper');
+            const body = document.querySelector('body');
+    
+            // 1. === 3D 晃动效果 (保留) ===
+            body.addEventListener('mousemove', (e) => {
+                const x = e.clientX / window.innerWidth;
+                const y = e.clientY / window.innerHeight;
+                
+                const rotateY = (x - 0.5) * 20; 
+                const rotateX = (0.5 - y) * 20; 
+    
+                paper.style.transform = `rotateX(${rotateX}deg) rotateY(${rotateY}deg)`;
+            });
+    
+            body.addEventListener('mouseleave', () => {
+                paper.style.transform = `rotateX(0deg) rotateY(0deg)`;
+            });
+    
+            // 2. === 新增：点击背景关闭 ===
+            // 逻辑：如果你点击的目标(target)不包含在 paper 内部，说明你点的是背景
+            document.addEventListener('click', (e) => {
+                if (!paper.contains(e.target)) {
+                    window.location.href = 'room.html';
+                }
+            });
+    
+            // 3. === 新增：按 ESC 键关闭 ===
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    window.location.href = 'room.html';
+                }
+            });
+        </script>
+
+</body>
+</html>

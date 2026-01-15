@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>THE ROOM - ENTRANCE</title>
+    <style>
+        /* ============================
+           1. 字体与变量
+           ============================ */
+        @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+        :root {
+            --magenta: #ff00ff; 
+            --cyan: #00ffff; 
+            --yellow: #ffff00;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+
+        /* ============================
+           2. 背景层 (用纯代码模拟房间背景)
+           ============================ */
+        body, html { 
+            width: 100%; height: 100%; 
+            font-family: 'Press Start 2P', monospace;
+            overflow: hidden;
+            
+            /* === 这里是纯CSS画的背景，不需要图片 === */
+            background-color: #1a0b1a; /* 深紫底色 */
+            background-image: 
+                linear-gradient(rgba(0, 255, 255, 0.1) 1px, transparent 1px), 
+                linear-gradient(90deg, rgba(0, 255, 255, 0.1) 1px, transparent 1px);
+            background-size: 60px 60px; /* 网格大小 */
+            
+            /* 让网格有点透视感，像地板一样 */
+            perspective: 800px;
+        }
+
+        /* 给背景加个简单的3D变换，让它看起来不像平面的纸 */
+        body::before {
+            content: "";
+            position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: inherit;
+            transform: rotateX(45deg); /* 倾斜效果 */
+            z-index: -1;
+            animation: move-grid 20s linear infinite;
+        }
+
+        @keyframes move-grid {
+            0% { background-position: 0 0; }
+            100% { background-position: 0 60px; }
+        }
+
+        /* ============================
+           3. 全屏遮罩层 (半透明黑)
+           ============================ */
+        .overlay-mask {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            
+            /* 【关键】黑色，0.7 代表 70% 不透明度 */
+            background-color: rgba(0, 0, 0, 0.7);
+            
+            display: flex; justify-content: center; align-items: center;
+            z-index: 10;
+        }
+
+        /* ============================
+           4. 中间实心框 (纯黑不透明)
+           ============================ */
+        .solid-box {
+            position: relative;
+            
+            /* 【关键】实心黑，挡住后面的透视 */
+            background-color: #000000;
+            
+            border: 4px solid var(--magenta);
+            padding: 50px 70px;
+            text-align: center;
+            
+            /* 霓虹阴影 */
+            box-shadow: 10px 10px 0px rgba(0, 255, 255, 0.5);
+            
+            /* 简单的出现动画 */
+            animation: zoom-in 0.4s ease-out;
+        }
+
+        @keyframes zoom-in {
+            0% { transform: scale(0.5); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* ============================
+           5. 文字与按钮样式
+           ============================ */
+        .glitch-title { 
+            font-size: 3rem; color: var(--magenta); 
+            text-shadow: 4px 4px 0px var(--cyan); 
+            margin-bottom: 20px; position: relative;
+            line-height: 1.2;
+        }
+
+        .glitch-title::before, .glitch-title::after { 
+            content: attr(data-text); position: absolute; top: 0; left: 0; 
+            width: 100%; height: 100%; background: #000; clip: rect(0,0,0,0); 
+        }
+        .glitch-title::before { left: -2px; text-shadow: 2px 0 var(--cyan); color: var(--cyan); animation: glitch-1 2s infinite linear alternate-reverse; }
+        .glitch-title::after { left: 2px; text-shadow: -2px 0 var(--magenta); color: var(--magenta); animation: glitch-2 3s infinite linear alternate-reverse; }
+
+        @keyframes glitch-1 { 0% { clip: rect(20px, 999px, 15px, 0); } 100% { clip: rect(40px, 999px, 50px, 0); } }
+        @keyframes glitch-2 { 0% { clip: rect(80px, 999px, 90px, 0); } 100% { clip: rect(25px, 999px, 35px, 0); } }
+
+        .subtitle { color: var(--cyan); font-size: 0.8rem; margin-bottom: 40px; letter-spacing: 2px; opacity: 0.8; }
+
+        .start-btn { 
+            font-family: 'Press Start 2P'; background: transparent; 
+            border: 3px solid var(--magenta); color: var(--magenta); 
+            padding: 15px 30px; font-size: 16px; cursor: pointer; 
+            box-shadow: 4px 4px 0px var(--cyan); transition: 0.1s; 
+        }
+        .start-btn:hover { background: var(--magenta); color: black; box-shadow: 2px 2px 0px var(--cyan); transform: translate(2px, 2px); }
+        .start-btn:active { transform: translate(4px, 4px); box-shadow: none; }
+
+        .loading-text { margin-top: 20px; color: var(--yellow); font-size: 0.9rem; display: none; animation: blink 0.5s infinite; }
+        @keyframes blink { 50% { opacity: 0; } }
+
+    </style>
+</head>
+<body>
+
+    <div class="overlay-mask">
+        
+        <div class="solid-box">
+            <h1 class="glitch-title" data-text="THE ROOM">THE ROOM</h1>
+            <div class="subtitle">INTERACTIVE SYSTEM</div>
+            
+            <button class="start-btn" onclick="goRoom()">[ ENTER ]</button>
+            <div id="loader" class="loading-text">LOADING...</div>
+        </div>
+
+    </div>
+
+    <script>
+        function goRoom() {
+            document.querySelector('.start-btn').style.display = 'none';
+            document.getElementById('loader').style.display = 'block';
+            
+            setTimeout(() => {
+                // 跳转到 room.html
+                window.location.href = 'room.html';
+            }, 800);
+        }
+    </script>
+
+</body>
+</html>
